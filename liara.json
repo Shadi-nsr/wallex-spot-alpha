@@ -1,0 +1,8 @@
+{
+  "app": "wallex-spot-alpha",
+  "port": 8080,
+  "platform": "docker",
+  "build": {
+    "location": "iran"
+  }
+}
