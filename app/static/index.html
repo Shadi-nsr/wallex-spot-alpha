@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>والکس — معامله‌ی اسپات</title>
+<style>
+:root{color-scheme:dark;--bg:#0b1020;--card:#121a31;--muted:#96a3bf;--accent:#6ee7b7;--line:#253253}
+*{box-sizing:border-box}body{margin:0;font-family:system-ui,-apple-system,"Segoe UI",sans-serif;background:radial-gradient(circle at 10% 0,#19244a,var(--bg) 40%);color:#eef3ff}
+main{max-width:1080px;margin:auto;padding:36px 18px}.top{display:flex;justify-content:space-between;gap:16px;align-items:start}.eyebrow{color:var(--accent);font-size:13px;font-weight:700;letter-spacing:.04em}.sub{color:var(--muted)}
+button{background:var(--accent);border:0;border-radius:10px;padding:12px 18px;font-weight:800;cursor:pointer;color:#071812}.notice{margin:24px 0;padding:14px 16px;border:1px solid #345d55;border-radius:12px;background:#122d2a;color:#c9ffeb}
+.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}.card{background:rgba(18,26,49,.9);border:1px solid var(--line);border-radius:14px;padding:16px}.label{font-size:12px;color:var(--muted)}.value{font-size:21px;font-weight:800;margin-top:8px;direction:rtl}
+.panel{margin-top:16px}.panel h2{font-size:17px;margin-top:0}.table{width:100%;border-collapse:collapse}.table th,.table td{text-align:right;padding:10px;border-bottom:1px solid #24304d;font-size:13px}.pill{padding:4px 9px;border-radius:999px;background:#27365f}.buy{color:var(--accent)}.hold{color:var(--muted)}
+.market-meta{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}.tag{border:1px solid #365071;background:#162642;border-radius:999px;padding:6px 10px;font-size:12px}.tag strong{color:var(--accent)}details{margin-top:16px}summary{cursor:pointer;color:#dce7ff;font-weight:700}.market-list{margin:12px 0 0;line-height:2;color:var(--muted);font-size:12px;word-break:break-word}
+@media(max-width:720px){.grid{grid-template-columns:repeat(2,1fr)}.top{display:block}button{margin-top:12px}.table{font-size:12px}.table th,.table td{padding:8px 5px}}
+</style>
+<main>
+  <div class="top"><div><div class="eyebrow">WALLEX SPOT ALPHA</div><h1>عامل پژوهش و معامله‌ی اسپات</h1><div class="sub">همه‌ی مبالغ و قیمت‌ها به تومان — اجرای واقعی خاموش</div></div><button id="run">اجرای بک‌تست</button></div>
+  <div class="notice">این نسخه فقط روی بازار اسپات کار می‌کند و لوریج آن همیشه <b>۱×</b> است. تعداد سفارش ارسال‌شده: <b>۰</b> — آداپتر والکس عمداً غیرفعال است.</div>
+  <section class="card"><div class="label">بازار فعال</div><div class="market-meta"><span class="tag" id="symbol">BTC/TMN</span><span class="tag">نوع حساب: <strong>اسپات</strong></span><span class="tag">ارز مظنه: <strong>تومان</strong></span><span class="tag">لوریج: <strong>۱×</strong></span></div></section>
+  <section class="grid panel"><div class="card"><div class="label">سرمایه‌ی شروع</div><div class="value" id="start">—</div></div><div class="card"><div class="label">ارزش پایان</div><div class="value" id="end">—</div></div><div class="card"><div class="label">بازده</div><div class="value" id="ret">—</div></div><div class="card"><div class="label">بیشینه افت سرمایه</div><div class="value" id="dd">—</div></div></section>
+  <section class="card panel"><h2>بازارهای غیرفعال در حساب اعتباری</h2><div class="sub">این فهرست از محدودیت حساب اعتباری والکس می‌آید؛ حالت این پروژه اسپات است.</div><details><summary id="market-count">در حال دریافت فهرست…</summary><div class="market-list" id="market-list"></div></details></section>
+  <section class="card panel"><h2>آخرین تصمیم‌های عامل</h2><table class="table"><thead><tr><th>زمان</th><th>عمل</th><th>قیمت (تومان)</th><th>امتیاز</th><th>دلیل</th></tr></thead><tbody id="rows"><tr><td colspan="5" class="sub">برای شروع روی اجرای بک‌تست بزن.</td></tr></tbody></table></section>
+</main>
+<script>
+const fa=n=>new Intl.NumberFormat('fa-IR',{maximumFractionDigits:2}).format(n);
+const money=n=>`${fa(n)} تومان`;
+async function loadMarkets(){const r=await fetch('/api/markets');const x=await r.json();document.getElementById('market-count').textContent=`${fa(x.credit_account_inactive_count)} بازار غیرفعال`;document.getElementById('market-list').textContent=x.credit_account_inactive_markets.join('، ')}
+async function run(){const r=await fetch('/api/backtest',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'});const x=await r.json();document.getElementById('symbol').textContent=x.symbol;document.getElementById('start').textContent=money(x.starting_cash);document.getElementById('end').textContent=money(x.ending_equity);document.getElementById('ret').textContent=fa(x.return_pct)+'٪';document.getElementById('dd').textContent=fa(x.max_drawdown_pct)+'٪';document.getElementById('rows').innerHTML=x.decisions.slice(-10).reverse().map(d=>`<tr><td>${new Date(d.timestamp*1000).toLocaleTimeString('fa-IR')}</td><td class="${d.action}"><span class="pill">${d.action==='buy'?'خرید':'صبر'}</span></td><td>${money(d.price)}</td><td>${fa(d.signal_score)}</td><td>${d.reasons.slice(-1)[0]||'—'}</td></tr>`).join('')}
+document.getElementById('run').onclick=run;loadMarkets();
+</script>
