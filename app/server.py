@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Any
 
@@ -10,6 +11,7 @@ from .agent import TradingAgent
 from .engine import BacktestEngine, Candle, JsonlDecisionLog, RiskConfig, synthetic_candles
 from .execution import ExecutionError, ManualWallexGateway
 from .markets import CREDIT_INACTIVE_MARKETS, TMN_QUOTE, market_status
+from .market_data import MarketDataError, fetch_candles
 
 
 class AppState:
@@ -19,6 +21,36 @@ class AppState:
         log_path = os.environ.get("WALLEX_DECISION_LOG_PATH", "/tmp/wallex-decisions.jsonl")
         self.agent = TradingAgent(engine, log=JsonlDecisionLog(log_path))
         self.gateway = ManualWallexGateway()
+        self.proposal_lock = threading.Lock()
+        self.market_cursor = 0
+        self.last_decision: dict[str, Any] | None = None
+        self.pending_proposal: dict[str, Any] | None = None
+
+    def refresh_proposal(self) -> dict[str, Any]:
+        """Advance the bounded strategy from public candles and draft a buy suggestion."""
+        with self.proposal_lock:
+            candles = fetch_candles(self.engine.symbol)
+            latest_decision = self.last_decision
+            for candle in candles:
+                if candle.timestamp <= self.market_cursor:
+                    continue
+                latest_decision = self.agent.on_candle(candle).as_dict()
+                self.market_cursor = candle.timestamp
+            self.last_decision = latest_decision
+            if self.pending_proposal and self.pending_proposal["draft"]["draft_id"] not in self.gateway.drafts:
+                self.pending_proposal = None
+            if latest_decision and latest_decision.get("action") == "buy" and latest_decision.get("quantity", 0) > 0:
+                if not self.pending_proposal or self.pending_proposal["decision"]["timestamp"] != latest_decision["timestamp"]:
+                    self.pending_proposal = {
+                        "decision": latest_decision,
+                        "draft": self.gateway.create_draft({
+                            "symbol": latest_decision["symbol"],
+                            "side": "BUY",
+                            "type": "MARKET",
+                            "quantity": latest_decision["quantity"],
+                        }),
+                    }
+            return {"ok": True, "decision": self.last_decision, "proposal": self.pending_proposal, "poll_after_seconds": 20}
 
     def backtest(self, rows: list[dict[str, Any]] | None = None) -> dict[str, Any]:
         candles = [Candle.from_mapping(row) for row in rows] if rows else synthetic_candles()
@@ -80,6 +112,13 @@ class Handler(BaseHTTPRequestHandler):
             return self._write({"symbol": STATE.engine.symbol, "risk": STATE.engine.config.__dict__, "tools": STATE.agent.tools.names(), "execution": STATE.gateway.status(), "market_type": "spot", "leverage": 1.0, "quote_currency": TMN_QUOTE})
         if self.path == "/api/execution/status":
             return self._write(STATE.gateway.status())
+        if self.path == "/api/execution/proposal":
+            if not STATE.gateway.session_active(self._session_id()):
+                return self._write({"ok": False, "error": "approval session has not been started"}, 401)
+            try:
+                return self._write(STATE.refresh_proposal())
+            except (MarketDataError, ExecutionError) as exc:
+                return self._write({"ok": False, "error": str(exc)}, 503)
         if self.path == "/api/markets":
             return self._write({"market_type": "spot", "quote_currency": TMN_QUOTE, "credit_account_inactive_count": len(CREDIT_INACTIVE_MARKETS), "credit_account_inactive_markets": sorted(CREDIT_INACTIVE_MARKETS), "example": market_status(STATE.engine.symbol)})
         self._write({"error": "not found"}, 404)
