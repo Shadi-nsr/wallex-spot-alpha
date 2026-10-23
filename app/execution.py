@@ -1,4 +1,4 @@
-"""Human-confirmed Wallex order gateway; never called from the agent loop."""
+"""Human-confirmed Wallex order gateway with browser-session approval."""
 from __future__ import annotations
 
 import hmac
@@ -21,18 +21,30 @@ class ManualWallexGateway:
         self.base = os.getenv("WALLEX_API_BASE_URL", "https://api.wallex.ir").rstrip("/")
         self.key = os.getenv("WALLEX_API_KEY", "")
         self.client_id = os.getenv("WALLEX_SUB_ACCOUNT_CLIENT_ID", "")
-        self.token = os.getenv("WALLEX_CONFIRM_TOKEN", "")
         self.mode = os.getenv("WALLEX_EXECUTION_MODE", "disabled").lower()
         self.clock = clock
         self.drafts: dict[str, tuple[dict[str, Any], int]] = {}
+        self.sessions: dict[str, int] = {}
         self.orders_submitted = 0
 
     @property
     def configured(self) -> bool:
-        return self.mode == "manual" and bool(self.key and self.client_id and self.token)
+        return self.mode == "manual" and bool(self.key and self.client_id)
 
     def status(self) -> dict[str, Any]:
         return {"mode": "manual-confirmation" if self.mode == "manual" else "disabled", "configured": self.configured, "orders_submitted": self.orders_submitted, "requires_human_confirmation": True}
+
+    def start_session(self, *, ttl: int = 43200) -> str:
+        sid = secrets.token_urlsafe(24)
+        self.sessions[sid] = int(self.clock()) + ttl
+        return sid
+
+    def _session_ok(self, sid: str) -> bool:
+        exp = self.sessions.get(sid, 0)
+        if int(self.clock()) >= exp:
+            self.sessions.pop(sid, None)
+            return False
+        return bool(exp)
 
     def _order(self, p: dict[str, Any]) -> dict[str, Any]:
         s = normalize_symbol(str(p.get("symbol", ""))).replace("/", "")
@@ -48,7 +60,7 @@ class ManualWallexGateway:
             raise ExecutionError("quantity is invalid") from exc
         if qty <= 0:
             raise ExecutionError("quantity must be positive")
-        o: dict[str, Any] = {"symbol": s, "side": side, "type": typ, "quantity": qty}
+        order: dict[str, Any] = {"symbol": s, "side": side, "type": typ, "quantity": qty}
         if typ == "LIMIT":
             try:
                 price = float(p["price"])
@@ -56,8 +68,8 @@ class ManualWallexGateway:
                 raise ExecutionError("LIMIT orders require price") from exc
             if price <= 0:
                 raise ExecutionError("price must be positive")
-            o["price"] = price
-        return o
+            order["price"] = price
+        return order
 
     def create_draft(self, payload: dict[str, Any], *, ttl: int = 300) -> dict[str, Any]:
         order, exp = self._order(payload), int(self.clock()) + ttl
@@ -65,7 +77,15 @@ class ManualWallexGateway:
         self.drafts[draft_id] = (order, exp)
         return {"draft_id": draft_id, "order": order, "expires_at": exp, "requires_confirmation": True}
 
-    def confirm(self, draft_id: str, token: str) -> dict[str, Any]:
+    def reject(self, draft_id: str, sid: str) -> dict[str, Any]:
+        if not self._session_ok(sid):
+            raise ExecutionError("approval session has not been started")
+        self.drafts.pop(draft_id, None)
+        return {"ok": True, "rejected": True, "draft_id": draft_id}
+
+    def confirm(self, draft_id: str, sid: str) -> dict[str, Any]:
+        if not self._session_ok(sid):
+            raise ExecutionError("approval session has not been started")
         draft = self.drafts.get(draft_id)
         if not draft:
             raise ExecutionError("draft not found or already used")
@@ -75,8 +95,6 @@ class ManualWallexGateway:
             raise ExecutionError("draft expired")
         if not self.configured:
             raise ExecutionError("manual gateway is not configured")
-        if not hmac.compare_digest(token, self.token):
-            raise ExecutionError("confirmation token is invalid")
         req = urllib.request.Request(f"{self.base}/v1/account/orders", data=json.dumps(order).encode(), method="POST", headers={"Content-Type": "application/json", "Accept": "application/json", "X-API-Key": self.key, "sub-account-client-id": self.client_id})
         try:
             with urllib.request.urlopen(req, timeout=15) as res:
