@@ -39,6 +39,10 @@ class ManualWallexGateway:
         self.sessions[sid] = int(self.clock()) + ttl
         return sid
 
+    def session_active(self, sid: str) -> bool:
+        """Return whether the browser approval session is still active."""
+        return self._session_ok(sid)
+
     def _session_ok(self, sid: str) -> bool:
         exp = self.sessions.get(sid, 0)
         if int(self.clock()) >= exp:
