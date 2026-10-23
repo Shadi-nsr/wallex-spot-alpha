@@ -1,0 +1,398 @@
+"""Wallex market metadata used by the spot-only demo.
+
+The inactive list is the published list for the credit account.  It is kept
+separate from the spot execution guard so the UI can explain the distinction:
+this deliverable can analyse spot markets only, while the list describes which
+markets are unavailable when an account is credit based.
+"""
+from __future__ import annotations
+
+from typing import Final
+
+TMN_QUOTE: Final = "TMN"
+SPOT_ACCOUNT: Final = "spot"
+CREDIT_ACCOUNT: Final = "credit"
+
+# Source list supplied for the credit-account market restrictions.
+_CREDIT_INACTIVE_MARKETS = """
+A/TMN
+G/TMN
+T/TMN
+W/TMN
+X/TMN
+2Z/TMN
+A/USDT
+G/USDT
+IO/TMN
+OP/TMN
+T/USDT
+W/USDT
+X/USDT
+2Z/USDT
+AMP/TMN
+APT/TMN
+ATH/TMN
+BAT/TMN
+BIO/TMN
+C98/TMN
+CAT/TMN
+CHR/TMN
+CRV/TMN
+CVC/TMN
+CVX/TMN
+EDU/TMN
+ENS/TMN
+FET/TMN
+FLR/TMN
+GLM/TMN
+GMT/TMN
+GNO/TMN
+GRT/TMN
+HOT/TMN
+ICP/TMN
+ILV/TMN
+INJ/TMN
+IO/USDT
+JST/TMN
+JTO/TMN
+JUP/TMN
+KAS/TMN
+KCS/TMN
+KNC/TMN
+LPT/TMN
+LRC/TMN
+MDT/TMN
+MET/TMN
+MMT/TMN
+MNT/TMN
+MTL/TMN
+NFT/TMN
+NMR/TMN
+NOT/TMN
+OMG/TMN
+ONE/TMN
+OP/USDT
+PYR/TMN
+QNT/TMN
+RAY/TMN
+REQ/TMN
+RLC/TMN
+RPL/TMN
+RSR/TMN
+SFP/TMN
+SKL/TMN
+SKY/TMN
+SLP/TMN
+SNX/TMN
+SSV/TMN
+TAO/TMN
+TIA/TMN
+TON/TMN
+TRB/TMN
+TWT/TMN
+UMA/TMN
+WIF/TMN
+WIN/TMN
+WOO/TMN
+XMR/TMN
+XPL/TMN
+XTZ/TMN
+YGG/TMN
+ZEC/TMN
+ZEN/TMN
+ZIL/TMN
+ZRO/TMN
+ZRX/TMN
+AERO/TMN
+AEVO/TMN
+AIOZ/TMN
+ALGO/TMN
+AMP/USDT
+ANKR/TMN
+API3/TMN
+APT/USDT
+ARKM/TMN
+ATH/USDT
+AVNT/TMN
+BAND/TMN
+BANK/TMN
+BAT/USDT
+BICO/TMN
+BIO/USDT
+BLUR/TMN
+BOME/TMN
+BONK/TMN
+BTTC/TMN
+C98/USDT
+CATI/TMN
+CAT/USDT
+CELR/TMN
+CGPT/TMN
+CHR/USDT
+COMP/TMN
+CRV/USDT
+CTSI/TMN
+CVC/USDT
+CVX/USDT
+DASH/TMN
+DEXE/TMN
+DOGS/TMN
+EDU/USDT
+ENS/USDT
+FET/USDT
+FLOW/TMN
+FLR/USDT
+FRAX/TMN
+GLM/USDT
+GMT/USDT
+GNO/USDT
+GRAM/TMN
+GRT/USDT
+HOT/USDT
+ICP/USDT
+ILV/USDT
+INJ/USDT
+JST/USDT
+JTO/USDT
+JUP/USDT
+KAIA/TMN
+KAS/USDT
+KCS/USDT
+KITE/TMN
+KMNO/TMN
+KNC/USDT
+LPT/USDT
+LRC/USDT
+MASK/TMN
+MDT/USDT
+MEME/TMN
+MET/USDT
+MMT/USDT
+MNT/USDT
+MOVE/TMN
+MTL/USDT
+NEAR/TMN
+NEXO/TMN
+NFT/USDT
+NMR/USDT
+NOT/USDT
+OMG/USDT
+ONDO/TMN
+ONE/USDT
+ORAI/TMN
+ORCA/TMN
+OSMO/TMN
+PAXG/TMN
+PNUT/TMN
+POLS/TMN
+PYR/USDT
+PYTH/TMN
+QNT/USDT
+RAY/USDT
+REQ/USDT
+RLC/USDT
+RPL/USDT
+RSR/USDT
+RUNE/TMN
+SAFE/TMN
+SFP/USDT
+SKL/USDT
+SKY/USDT
+SLP/USDT
+SNX/USDT
+SOON/TMN
+SSV/USDT
+STRK/TMN
+TAO/USDT
+TIA/USDT
+TON/USDT
+TRAC/TMN
+TRB/USDT
+TWT/USDT
+UMA/USDT
+USDS/TMN
+WBTC/TMN
+WIF/USDT
+WIN/USDT
+WOO/USDT
+XMR/USDT
+XPL/USDT
+XTZ/USDT
+YFI/USDT
+YGG/USDT
+ZEC/USDT
+ZEN/USDT
+ZETA/TMN
+ZIL/USDT
+ZORA/TMN
+ZRO/USDT
+ZRX/USDT
+AAPLX/TMN
+AERO/USDT
+AEVO/USDT
+AIOZ/USDT
+AIXBT/TMN
+ALGO/USDT
+AMZNX/TMN
+ANKR/USDT
+API3/USDT
+ARKM/USDT
+ASTER/TMN
+AUDIO/TMN
+AVNT/USDT
+BAND/USDT
+BANK/USDT
+BICO/USDT
+BLUR/USDT
+BOME/USDT
+BONK/USDT
+BTTC/USDT
+CATI/USDT
+CELR/USDT
+CGPT/USDT
+COINX/TMN
+COMP/USDT
+CTSI/USDT
+CYBER/TMN
+DASH/USDT
+DEXE/USDT
+DOGS/USDT
+ETHFI/TMN
+FLOW/USDT
+FRAX/USDT
+GRAM/USDT
+HMSTR/TMN
+HOODX/TMN
+JASMY/TMN
+KAIA/USDT
+KAITO/TMN
+KITE/USDT
+KMNO/USDT
+LAYER/TMN
+LINEA/TMN
+MAGIC/TMN
+MAJOR/TMN
+MASK/USDT
+MEME/USDT
+METAX/TMN
+METIS/TMN
+MOVE/USDT
+NEAR/USDT
+NEIRO/TMN
+NEXO/USDT
+NVDAX/TMN
+ONDO/USDT
+ORAI/USDT
+ORCA/USDT
+OSMO/USDT
+PAXG/USDT
+PIXEL/TMN
+PNUT/USDT
+POLS/USDT
+PROVE/TMN
+PYTH/USDT
+RUNE/USDT
+SAFE/USDT
+SENSO/TMN
+SOON/USDT
+STRK/USDT
+SUPER/TMN
+SYRUP/TMN
+TOSHI/TMN
+TRAC/USDT
+TSLAX/TMN
+TURBO/TMN
+UNGON/TMN
+USDS/USDT
+WAVES/TMN
+WBTC/USDT
+ZETA/USDT
+ZORA/USDT
+AAPLX/USDT
+AIXBT/USDT
+AMZNX/USDT
+ASTER/USDT
+AUDIO/USDT
+BANANA/TMN
+COINX/USDT
+CYBER/USDT
+EIGEN/USDT
+ETHFI/USDT
+GIGGLE/TMN
+HMSTR/USDT
+HOODX/USDT
+JASMY/USDT
+KAITO/USDT
+LAYER/USDT
+LINEA/USDT
+MAGIC/USDT
+MAJOR/USDT
+MEMEFI/TMN
+METAX/USDT
+METIS/USDT
+MORPHO/TMN
+NEIRO/USDT
+NVDAX/USDT
+PENDLE/TMN
+PIXEL/USDT
+PPLTON/TMN
+PROVE/USDT
+RENDER/TMN
+SAHARA/TMN
+SENSO/USDT
+SUPER/USDT
+SYRUP/USDT
+TOSHI/USDT
+TSLAX/USDT
+TURBO/USDT
+UNGON/USDT
+WAVES/USDT
+BANANA/USDT
+GIGGLE/USDT
+MEMEFI/USDT
+MORPHO/USDT
+PENDLE/USDT
+PEOPLE/USDT
+PPLTON/USDT
+RENDER/USDT
+SAHARA/USDT
+VIRTUAL/TMN
+VIRTUAL/USDT
+1BBABYDOGE/TMN
+1BBABYDOGE/USDT
+"""
+
+CREDIT_INACTIVE_MARKETS: Final[frozenset[str]] = frozenset(
+    line.strip().upper() for line in _CREDIT_INACTIVE_MARKETS.splitlines() if line.strip()
+)
+
+
+def normalize_symbol(symbol: str) -> str:
+    """Return a stable ``BASE/QUOTE`` representation."""
+    raw = str(symbol).strip().upper().replace("-", "/").replace("_", "/")
+    if "/" not in raw:
+        for quote in ("USDT", "TMN"):
+            if raw.endswith(quote) and len(raw) > len(quote):
+                return f"{raw[:-len(quote)]}/{quote}"
+    return raw
+
+
+def market_status(symbol: str) -> dict[str, object]:
+    """Describe spot support and the credit-account restriction for a symbol."""
+    normalized = normalize_symbol(symbol)
+    quote = normalized.rsplit("/", 1)[-1] if "/" in normalized else ""
+    return {
+        "symbol": normalized,
+        "quote_currency": quote,
+        "spot_tradeable": quote == TMN_QUOTE,
+        "credit_account_active": normalized not in CREDIT_INACTIVE_MARKETS,
+        "credit_account_inactive": normalized in CREDIT_INACTIVE_MARKETS,
+    }
+
+
+def ensure_spot_tmn_symbol(symbol: str) -> str:
+    """Reject non-TMN markets because this project is spot-only and تومان-only."""
+    normalized = normalize_symbol(symbol)
+    if "/" not in normalized or normalized.rsplit("/", 1)[-1] != TMN_QUOTE:
+        raise ValueError(f"only spot markets quoted in {TMN_QUOTE} are supported: {symbol!r}")
+    return normalized
