@@ -1,0 +1,6 @@
+__pycache__/
+*.py[cod]
+data/*.jsonl
+.env
+.env.*
+!.env.example
