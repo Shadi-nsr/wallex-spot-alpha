@@ -33,12 +33,30 @@ STATE = AppState()
 class Handler(BaseHTTPRequestHandler):
     server_version = "WallexSpot/1.0"
 
+    def _session_id(self) -> str:
+        raw = self.headers.get("Cookie", "")
+        for item in raw.split(";"):
+            key, _, value = item.strip().partition("=")
+            if key == "wallex_manual_session":
+                return value
+        return ""
+
     def _write(self, payload: Any, status: int = 200) -> None:
         raw = json.dumps(payload, ensure_ascii=False).encode("utf-8")
         self.send_response(status)
         self.send_header("Content-Type", "application/json; charset=utf-8")
         self.send_header("Content-Length", str(len(raw)))
         self.send_header("Cache-Control", "no-store")
+        self.end_headers()
+        self.wfile.write(raw)
+
+    def _write_with_cookie(self, payload: Any, session_id: str, status: int = 200) -> None:
+        raw = json.dumps(payload, ensure_ascii=False).encode("utf-8")
+        self.send_response(status)
+        self.send_header("Content-Type", "application/json; charset=utf-8")
+        self.send_header("Content-Length", str(len(raw)))
+        self.send_header("Cache-Control", "no-store")
+        self.send_header("Set-Cookie", f"wallex_manual_session={session_id}; Max-Age=43200; HttpOnly; SameSite=Lax; Path=/")
         self.end_headers()
         self.wfile.write(raw)
 
@@ -59,8 +77,8 @@ class Handler(BaseHTTPRequestHandler):
             status = STATE.gateway.status()
             return self._write({"ok": True, "service": "wallex-spot-alpha", "mode": "shadow", "orders_submitted": status["orders_submitted"], "adapter_enabled": False, "execution": status})
         if self.path == "/api/config":
-            return self._write({"symbol": STATE.engine.symbol, "risk": STATE.engine.config__dict__, "tools": STATE.agent.tools.names(), "execution": STATE.gateway.status(), "market_type": "spot", "leverage": 1.0, "quote_currency": TMN_QUOTE})
-         if self.path == "/api/execution/status":
+            return self._write({"symbol": STATE.engine.symbol, "risk": STATE.engine.config.__dict__, "tools": STATE.agent.tools.names(), "execution": STATE.gateway.status(), "market_type": "spot", "leverage": 1.0, "quote_currency": TMN_QUOTE})
+        if self.path == "/api/execution/status":
             return self._write(STATE.gateway.status())
         if self.path == "/api/markets":
             return self._write({"market_type": "spot", "quote_currency": TMN_QUOTE, "credit_account_inactive_count": len(CREDIT_INACTIVE_MARKETS), "credit_account_inactive_markets": sorted(CREDIT_INACTIVE_MARKETS), "example": market_status(STATE.engine.symbol)})
@@ -72,9 +90,9 @@ class Handler(BaseHTTPRequestHandler):
             body = json.loads(self.rfile.read(size) or b"{}")
         except (ValueError, json.JSONDecodeError):
             return self._write({"error": "body must be JSON"}, 400)
-         if self.path == "/api/backtest":
+        if self.path == "/api/backtest":
             try:
-                return self._write(STATE*.backtest(body.get("candles")))
+                return self._write(STATE.backtest(body.get("candles")))
             except (ValueError, KeyError) as exc:
                 return self._write({"error": str(exc)}, 400)
         if self.path == "/api/shadow/candle":
@@ -83,19 +101,29 @@ class Handler(BaseHTTPRequestHandler):
                 return self._write({"decision": decision.as_dict(), "orders_submitted": 0, "execution": "disabled"})
             except (ValueError, KeyError) as exc:
                 return self._write({"error": str(exc)}, 400)
+        if self.path == "/api/execution/start":
+            session_id = STATE.gateway.start_session()
+            return self._write_with_cookie({"ok": True, "started": True, "requires_human_confirmation": True}, session_id)
         if self.path == "/api/execution/order/draft":
             try:
                 return self._write(STATE.gateway.create_draft(body))
-            except Execution Error as exc:
+            except ExecutionError as exc:
                 return self._write({"ok": False, "error": str(exc)}, 400)
         if self.path == "/api/execution/order/confirm":
             try:
-                draft_id = str(body.get("draft_id", "")
-                token = str(body.get("confirmation_token", ""))
-                if not draft_id or not token:
-                    raise ExecutionError("draft_id token required")
-                return self._write(STATE.gateway.confirm(draft_id, token))
-            except Execution Error as exc:
+                draft_id = str(body.get("draft_id", ""))
+                if not draft_id:
+                    raise ExecutionError("draft_id لازم است")
+                return self._write(STATE.gateway.confirm(draft_id, self._session_id()))
+            except ExecutionError as exc:
+                return self._write({"ok": False, "error": str(exc)}, 400)
+        if self.path == "/api/execution/order/reject":
+            try:
+                draft_id = str(body.get("draft_id", ""))
+                if not draft_id:
+                    raise ExecutionError("draft_id لازم است")
+                return self._write(STATE.gateway.reject(draft_id, self._session_id()))
+            except ExecutionError as exc:
                 return self._write({"ok": False, "error": str(exc)}, 400)
         self._write({"error": "not found"}, 404)
 
@@ -103,12 +131,13 @@ class Handler(BaseHTTPRequestHandler):
         # Keep output clean for a five-minute demo.
         return
 
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Wallex Spot Alpha local API")
     parser.add_argument("--host", default=os.environ.get("HOST", "0.0.0.0"))
     parser.add_argument("--port", type=int, default=int(os.environ.get("PORT", "8080")))
     args = parser.parse_args()
-    print(f"Wallex Spot Alpha listening on http://{args.host}:{args.port} (spot-only, ØªÙÙØ§Ù, manual confirmation only)")
+    print(f"Wallex Spot Alpha listening on http://{args.host}:{args.port} (spot-only, تومان, manual confirmation only)")
     ThreadingHTTPServer((args.host, args.port), Handler).serve_forever()
 
 
