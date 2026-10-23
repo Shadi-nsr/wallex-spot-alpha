@@ -5,6 +5,7 @@ from pathlib import Path
 
 from app.agent import TradingAgent
 from app.engine import BacktestEngine, Candle, JsonlDecisionLog, RawWallexAdapter, RiskConfig, synthetic_candles
+from app.execution import ExecutionError, ManualWallexGateway
 from app.markets import CREDIT_INACTIVE_MARKETS, market_status, normalize_symbol
 
 
@@ -50,6 +51,21 @@ class EngineTests(unittest.TestCase):
     def test_leverage_is_rejected(self):
         with self.assertRaisesRegex(ValueError, "leverage is disabled"):
             RiskConfig(max_leverage=2.0).validate()
+
+    def test_manual_gateway_creates_expiring_draft_without_network_call(self):
+        gateway = ManualWallexGateway(clock=lambda: 1000)
+        draft = gateway.create_draft({"symbol": "BTC/TMN", "side": "BUY", "type": "LIMIT", "price": 3_000_000, "quantity": 0.1})
+        self.assertTrue(draft["requires_confirmation"])
+        self.assertEqual(draft["order"]["symbol"], "BTCTMN")
+        self.assertEqual(draft["expires_at"], 1300)
+        session = gateway.start_session()
+        with self.assertRaisesRegex(ExecutionError, "not configured"):
+            gateway.confirm(draft["draft_id"], session)
+
+    def test_manual_gateway_rejects_credit_inactive_market(self):
+        gateway = ManualWallexGateway(clock=lambda: 1000)
+        with self.assertRaisesRegex(ExecutionError, "active TMN"):
+            gateway.create_draft({"symbol": "A/TMN", "side": "BUY", "type": "MARKET", "quantity": 1})
 
 
 if __name__ == "__main__":
